@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop 
+        http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+  <!-- Tag: logging  -->
+  <bean id="loggerInjector" class="net.ddns.drj7z.pollme.pollmesrv.support.springframework.LoggerInjector"
+        autowire-candidate="false"/>
+  <!--  End-Of-Tag: logging -->
+
+  <bean id="datasource" class="org.apache.commons.dbcp.BasicDataSource" 
+        destroy-method="close" lazy-init="true">
+    <property name="driverClassName" value="org.sqlite.JDBC" />
+    <property name="url" value="jdbc:sqlite:pollmesrv.db" />
+    <property name="initialSize" value="2" />
+    <property name="maxActive" value="20" />
+    <property name="maxIdle" value="5" />
+    <property name="poolPreparedStatements" value="true" />
+	</bean>
+
+<!--   <bean id="registrationData" 
+        class="net.ddns.drj7z.pollme.pollmesrv.action.register.RegistrationDataSimple"
+        scope="prototype"/>
+-->
+	
+	<bean id="registerAction" class="net.ddns.drj7z.pollme.pollmesrv.action.register.RegisterAction"/>
+
+  <bean id="actionFactory" class="net.ddns.drj7z.pollme.pollmesrv.action.ActionFactorySimple"
+        factory-method="getInstance">
+    <property name="actions">
+      <map>
+        <entry key="register" value-ref="registerAction"/>
+      </map>
+    </property>
+  </bean>
+  
+  <!-- Tag: JSON / Gson -->
+
+  <bean id="jsonEncoder" class="net.ddns.drj7z.pollme.pollmesrv.communication.json.gson.JsonEncoderGson"/>
+
+  <!-- End-Of-Tag: JSON / Gson -->
+
+  <bean id="communicator" class="net.ddns.drj7z.pollme.pollmesrv.communication.TcpCommunicator"
+    scope="prototype"/>
+	
+	<bean id="packetReceiver" class="net.ddns.drj7z.pollme.pollmesrv.communication.PacketReceiverSimple">
+    <property name="jsonEncoder" ref="jsonEncoder"/>
+  </bean>
+	
+	<bean id="serverThread" class="net.ddns.drj7z.pollme.pollmesrv.ServerThread"
+	      scope="prototype">
+    <property name="actionFactory" ref="actionFactory"/>
+	</bean>
+	
+  <bean id="serverThreadBuilder" class="net.ddns.drj7z.pollme.pollmesrv.TcpServerThreadBuilder">
+     <lookup-method name="createCommunicator" bean="communicator"/>
+     <lookup-method name="createPacketReceiver" bean="packetReceiver"/>
+     <lookup-method name="createServerThread" bean="serverThread"/>
+  </bean>
+
+  <bean id="server" class="net.ddns.drj7z.pollme.pollmesrv.Server">
+    <property name="serverPort" value="7001"/>
+    <property name="threadPoolSize" value="4"/>
+    <property name="serverThreadBuilder" ref="serverThreadBuilder"/>
+  </bean>
+
+  <!-- Tag: AOP -->
+  <aop:aspectj-autoproxy/>
+  
+  <bean id="serverLoggingAspect" class="net.ddns.drj7z.pollme.pollmesrv.logging.ServerLoggingAspect"/>
+  <!-- End-Of-Tag: AOP -->
+
+</beans>
